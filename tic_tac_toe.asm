@@ -1,24 +1,42 @@
 .data 
-
-
+    board: .asciiz "123456789"
+    prompt1: .asciiz "\nEnter 1 to Restart Game.\nEnter 0 to exist!\n"
 .text 
 
-#// Connor and Olise Start
+# //Olise Start
 #int main() {
-#  char board[9] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
-#  int gameOption; // restart or exit game
+main:
+#  char board[9] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'}; $s0
+    la $s0, board #load address of string
+    
+#  int gameOption; // restart or exit game $v0
+    
 
 #  do {
+    main_DoWhile:
 #    startGame(board);
 #    resetBoard(board);
 
 #    printf("\nEnter 1 to Restart Game.\nEnter 0 to exist!\n");
+        li $v0, 4
+        la $a0, prompt1
+        syscall 
+        
 #    scanf("%d", &gameOption);
+        li $v0, 5
+        syscall 
+        
 #  } while (gameOption == 1);
+        beq $v0, 1, main_DoWhile 
+        
+    
 
 #  return 0;
+    li $v0, 10
+    syscall 
 #}
-#// Connor and Olise End
+
+#// Olise End
 
 #// Olise Start
 #void startGame(char *board) {
