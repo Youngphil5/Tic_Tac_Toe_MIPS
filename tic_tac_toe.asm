@@ -5,6 +5,12 @@
     prompt3: .asciiz "\nPlayer "
     prompt4: .asciiz " starts first!\n"
     prompt5: .asciiz "\nPlayer 1 is x and player 2 is o\n"
+    spaceOpenBracket: .asciiz " ("
+    closeBracketSpace: .asciiz ") :\n"
+    newLine: .asciiz "\n"
+    space: .asciiz " "
+    verticalBorderAndSpace: .asciiz " | "
+    horizontalBorder:   .asciiz "\n---|---|---\n"
     
 .text 
 
@@ -97,6 +103,7 @@ startGame:
     beq $t0 2, player2PlaysFirst
      
 #    play(whoPlaysFirst, board, 'x', numOfSpaceLeft);
+    add $a0, $zero, $t0
     li  $a1, 'x'
     li $a2, 9 # numOfSpaceLeft
     jal play 
@@ -107,7 +114,8 @@ startGame:
     player2PlaysFirst:
     
 #    play(whoPlaysFirst, board, 'o', numOfSpaceLeft);
-    li  $a1, '0'
+    add $a0, $zero, $t0
+    li  $a1, 'o'
     li $a2, 9 # numOfSpaceLeft
     jal play
 #  }
@@ -142,19 +150,77 @@ startGame:
 #}
 #// Connor and Olise End
 
-#// Connor Start
+#// Olise Start
 #void draw_board(char *board) {
+draw_board:
+
 #  printf("\n");
+    li $v0, 4
+    la  $a0, newLine
+    syscall  
+    
+    li $t0, 0 # base offset
+    
+    
+    
+    
 #  printf(" %c | %c | %c \n", board[0], board[1], board[2]);
 #  printf("---|---|---\n");
 #  printf(" %c | %c | %c \n", board[3], board[4], board[5]);
 #  printf("---|---|---\n");
 #  printf(" %c | %c | %c \n", board[6], board[7], board[8]);
+    dbForLoop:
+        li $v0, 4
+        la $a0, space
+        syscall 
+        
+        li $v0, 11
+        lb $a0, board($t0)
+        syscall 
+        
+        addi $t0, $t0, 1 # $t0 ++
+        
+        li $v0, 4
+        la $a0, verticalBorderAndSpace
+        syscall
+        
+        li $v0, 11
+        lb $a0, board($t0)
+        syscall 
+        
+        addi $t0, $t0, 1 # $t0 ++
+        
+        li $v0, 4
+        la $a0, verticalBorderAndSpace
+        syscall
+        
+        li $v0, 11
+        lb $a0, board($t0)
+        syscall  
+        
+        addi $t0, $t0, 1 # $t0 ++
+    
+        # if we are not done display
+        # the horizontal border
+        bgt $t0 7 dbEndOfForLoop
+        
+        li $v0, 4
+        la $a0, horizontalBorder
+        syscall
+        
+        blt $t0 7 dbForLoop 
+        
+    dbEndOfForLoop:
 #  printf("\n");
+        li $v0, 4
+        la  $a0, newLine
+        syscall
+    
+        jr $ra
 #}
-#// Connor End
+#// Olise End
 
-#// Olise Start
+#// 
 #void updateBoard(char *board, int squareIndex, char playerMark) {
 #  // playerMark is x or o
 #  // squareIndex means what block the player chose
@@ -162,9 +228,9 @@ startGame:
 
 #  board[squareIndex] = playerMark;
 #}
-#// Olise End
+#// 
 
-#// Connor Start
+#// 
 #int check_for_winner(char *board, int numOfSpaces) {
 #  if (numOfSpaces > 0) {
 
@@ -193,9 +259,9 @@ startGame:
 #    return -1; // no moves left
 #  }
 #}
-#// Connor End
+#// 
 
-#// Olise Start
+#// 
 #int validateChoice(int choice, char *board) {
 #  char squareChoice;
 #  int returnValue = 0; // 0 --> not a valid choice
@@ -216,17 +282,58 @@ startGame:
 #  return returnValue;
 #}
 
+#// Olise Start
 #void play(int playerId, char *board, char playerMark, int numOfSpaceLeft) { 
 # ($a0 --> playerId, $s0 --> board, $a1 --> playerMark, $a2 --> numOfSpaceLeft)
-play:
-    addi $sp, $sp, -4 # push
-    sw $ra, 0($sp)
+play:  
+    
 #  // playerMark is either x or o
-#  int playerSelection;
-#  int gameStatus;
+#  int playerSelection; --> $t3
+    #add $t3, $zero, $zero 
+#  int gameStatus;    --> $t4
+    #add $t4, $zero, $zero 
+    
+    # moved arguments to temp registers
+    add $t0, $a0, $zero # playerId --> $t0
+    add $t1, $a1, $zero # playerMark --> $t1
+    add $t2, $a2, $zero # numOfSpaceLeft --> $t2
+    
+    # store temp vars to stack
+    addi $sp, $sp, -16 # push
+    sw $ra, 0($sp)
+    sw $t0, 4($sp)
+    sw $t1, 8($sp)
+    sw $t2, 12($sp)
 
 #  printf("\nPlayer %d (%c) :\n", playerId, playerMark);
+    li $v0, 4
+    la $a0, prompt3
+    syscall 
+    
+    li $v0, 1
+    add $a0, $t0, $zero
+    syscall 
+    
+     li $v0, 4
+     la $a0, spaceOpenBracket
+     syscall 
+     
+     # display player mark
+     li $v0 11
+     add $a0, $zero, $t1
+     syscall  
+     
+     li $v0, 4
+     la $a0, closeBracketSpace
+     syscall
+     
 #  draw_board(board);
+    jal draw_board
+    # restore temp variables
+    lw $t0, 4($sp)
+    lw $t1, 8($sp)
+    lw $t2, 12($sp)
+
 
 #  playerSelection = make_selection(board);
 #  updateBoard(board, playerSelection, playerMark);
@@ -252,13 +359,14 @@ play:
 #    }
 #  }
     lw $ra, 0($sp) # load return address
-    add $sp, $sp 4 # pop
+    add $sp, $sp 16 # pop
     jr $ra 
 #}
+#// Olise End
 
 #void resetBoard(char *board) {
 #  for (int x = 0; x < 9; x++) {
 #    board[x] = 1 + x + '0';
 #  }
 #}
-#// Olise End
+
