@@ -1,6 +1,11 @@
 .data 
     board: .asciiz "123456789"
     prompt1: .asciiz "\nEnter 1 to Restart Game.\nEnter 0 to exist!\n"
+    prompt2: .asciiz "\nWelcome to Tic Tac Toe game!\n\nDecide who plays first (Enter 1 OR 2): "
+    prompt3: .asciiz "\nPlayer "
+    prompt4: .asciiz " starts first!\n"
+    prompt5: .asciiz "\nPlayer 1 is x and player 2 is o\n"
+    
 .text 
 
 # //Olise Start
@@ -14,7 +19,10 @@ main:
 
 #  do {
     main_DoWhile:
+    
 #    startGame(board);
+    jal startGame
+    
 #    resetBoard(board);
 
 #    printf("\nEnter 1 to Restart Game.\nEnter 0 to exist!\n");
@@ -40,24 +48,74 @@ main:
 
 #// Olise Start
 #void startGame(char *board) {
-#  int whoPlaysFirst;
-#  int numOfSpaceLeft = 9; // how many space left in the board
+startGame:
+
+#  int whoPlaysFirst; --> $t0
+    
+#  int numOfSpaceLeft = 9; // how many space left in the board --> $a2
 
 #  do { // choose who plays first
+    startGame_DoWhile:
+        addi $sp, $sp -4 # alloc space for return address
+        sw $ra, 0($sp)
+        
 #    printf("\nWelcome to Tic Tac Toe game!\n\n"
 #           "Decide who plays first (Enter 1 OR 2): ");
+        li $v0, 4
+        la $a0, prompt2
+        syscall 
 
 #    scanf("%d", &whoPlaysFirst);
+        li $v0, 5
+        syscall 
+        add $t0, $zero, $v0 
+    
 #  } while (whoPlaysFirst != 1 && whoPlaysFirst != 2);
+        bgt $t0, 2, startGame_DoWhile
+        blt $t0, 1, startGame_DoWhile
 
 #  printf("\nPlayer %d starts first!\n", whoPlaysFirst);
+    li $v0, 4
+    la $a0, prompt3
+    syscall 
+    
+    li $v0, 1
+    add $a0, $t0, $zero
+    syscall 
+    
+    li $v0, 4
+    la $a0, prompt4
+    syscall
+    
 #  printf("\nPlayer 1 is x and player 2 is o\n");
-
+    li $v0, 4
+    la $a0, prompt5
+    syscall
+    
 #  if (whoPlaysFirst == 1) {
+    # if whoPlaysFirst = 2 branch to player2PlaysFirst
+    beq $t0 2, player2PlaysFirst
+     
 #    play(whoPlaysFirst, board, 'x', numOfSpaceLeft);
+    li  $a1, 'x'
+    li $a2, 9 # numOfSpaceLeft
+    jal play 
+    
+    j endOfStartFunc 
+
 #  } else {
+    player2PlaysFirst:
+    
 #    play(whoPlaysFirst, board, 'o', numOfSpaceLeft);
+    li  $a1, '0'
+    li $a2, 9 # numOfSpaceLeft
+    jal play
 #  }
+
+    endOfStartFunc:
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4 # pop
+        jr $ra
 #}
 #// Olise End
 
@@ -158,7 +216,11 @@ main:
 #  return returnValue;
 #}
 
-#void play(int playerId, char *board, char playerMark, int numOfSpaceLeft) {
+#void play(int playerId, char *board, char playerMark, int numOfSpaceLeft) { 
+# ($a0 --> playerId, $s0 --> board, $a1 --> playerMark, $a2 --> numOfSpaceLeft)
+play:
+    addi $sp, $sp, -4 # push
+    sw $ra, 0($sp)
 #  // playerMark is either x or o
 #  int playerSelection;
 #  int gameStatus;
@@ -189,6 +251,9 @@ main:
 #      play(1, board, 'x', numOfSpaceLeft);
 #    }
 #  }
+    lw $ra, 0($sp) # load return address
+    add $sp, $sp 4 # pop
+    jr $ra 
 #}
 
 #void resetBoard(char *board) {
