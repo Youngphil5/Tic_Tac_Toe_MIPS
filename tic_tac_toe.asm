@@ -5,12 +5,16 @@
     prompt3: .asciiz "\nPlayer "
     prompt4: .asciiz " starts first!\n"
     prompt5: .asciiz "\nPlayer 1 is x and player 2 is o\n"
+    prompt6: .asciiz "Enter which grid space to move to(1-9): "
+    cantPlayThere: .asciiz "\nCant play there. try again!\n"
     spaceOpenBracket: .asciiz " ("
     closeBracketSpace: .asciiz ") :\n"
     newLine: .asciiz "\n"
     space: .asciiz " "
     verticalBorderAndSpace: .asciiz " | "
     horizontalBorder:   .asciiz "\n---|---|---\n"
+    gameOver: .asciiz "\nGAME OVER\nNo winner\n"
+    winner: .asciiz " is the winner\n\n"
 
 .text
 
@@ -30,6 +34,7 @@ main:
     jal startGame
 
 #    resetBoard(board);
+    jal resetBoard
 
 #    printf("\nEnter 1 to Restart Game.\nEnter 0 to exist!\n");
         li $v0, 4
@@ -50,9 +55,9 @@ main:
     syscall
 #}
 
-#// Olise End
+# //Olise End
 
-#// Olise Start
+# //Olise Start
 #void startGame(char *board) {
 startGame:
 
@@ -125,32 +130,81 @@ startGame:
         addi $sp, $sp, 4 # pop
         jr $ra
 #}
-#// Olise End
+# //Olise End
 
-#// Connor and Olise Start
+# //Olise Start
 #int make_selection(char *board) {
-#  //  being written must take user input for where to move and place
-#  // appropriate symobol in their desired grid space should somehow
-#  // use the draw method
-#  int selection;
-#  int validFlag = 0; // 1 --> valid, 0 --> not valid
+make_selection: 
+    addi $sp, $sp -8
+    sw $ra, 0($sp) # store return address to stack
+
+#  int selection; --> $t0
+
+#  int validFlag = 0; // 1 --> valid, 0 --> not valid --> $t1
+     li $t1, 0 # set valid to 0
 
 #  do {
+    make_SelectionDoWhile:
+    
 #    printf("Enter which grid space to move to(1-9): ");
+    
+    # display prompt
+    li $v0, 4
+    la $a0, prompt6
+    syscall 
+
 #    scanf("%d", &selection);
+    
+    # ask for user input (int)
+    li $v0, 5
+    syscall 
+    
+    # move user input to $t0 (selection)
+    add $t0, $v0, $zero
+    
+    # save selection in stack incase of
+    # function call
+    sw $t0, 4($sp) 
 
 #    validFlag = validateChoice(selection, board);
+    add $a0, $zero, $t0 # arg 1 for function
+    jal validateChoice
+    
+    # move return value to validFlag
+    add $t1, $zero, $v0
 
 #    if (validFlag == 0) {
+    
+    # if its a valid selection jump 
+    # to the end of function
+    bnez $t1, end_make_Selection
+    
 #      printf("\nCant play there. try again!\n");
+ 
+    # display message
+    li $v0, 4
+    la $a0, cantPlayThere
+    syscall 
 #    }
+
 #  } while (validFlag == 0);
+     # loop again 
+    j make_SelectionDoWhile
 
+    
 #  return selection;
+    end_make_Selection:
+        # get values back from stack
+        lw $v0, 4($sp) # get selection
+        lw $ra, 0($sp) # get return address
+        addi $sp, $sp, 8 #pop stack
+        
+        jr $ra # return address
 #}
-#// Connor and Olise End
+# //Olise End
 
-#// Olise Start
+
+# //Olise Start
 #void draw_board(char *board) {
 draw_board:
 
@@ -218,250 +272,172 @@ draw_board:
 
         jr $ra
 #}
-#// Olise End
+# //Olise End
 
-# Connor Start
-
-updateBoard:		     #//
-			     #void updateBoard(char *board, int squareIndex, char playerMark) {
+# //Connor and Olise Start
+#void updateBoard(char *board, int squareIndex, char playerMark) {
 			     #  // playerMark is x or o
+updateBoard: # $a1 = squareIndex, $a2 = playerMark		     
 
-    addi $sp, $sp, -8        # Adjust stack pointer for two local variables
-    sw   $ra, 0($sp)         # Save the return address
-    sw   $s0, 4($sp)         # Save the base address of the board
+
+   
 
    			     #  // squareIndex means what block the player chose
 			     #  squareIndex--; // so we can use it as index for the char[]
 
-    addi $t0, $a1, -1        # Subtract 1 from squareIndex
-
-    add  $s0, $a0, $zero     # Set $s0 to the base address of the board
-    add  $t1, $zero, $t0     # Copy the modified squareIndex to $t1
-
-    sll  $t1, $t1, 2         # Multiply squareIndex by 4 to get byte offset
-    addu $t1, $s0, $t1       # Calculate the address of the chosen block
-
-    lb   $t2, 0($t1)         # Load the character from the chosen block
-    add  $t2, $zero, $a2     # Set $t2 to playerMark
-
-    sb   $t2, 0($t1)         # Store playerMark in the chosen block
-
-    			     #  // squareIndex means what block the player chose
-			     #  squareIndex--; // so we can use it as index for the char[]
-			     #  board[squareIndex] = playerMark;
-
-
-    lw   $ra, 0($sp)         # Restore the return address
-    lw   $s0, 4($sp)         # Restore the base address of the board
-    addi $sp, $sp, 8         # Restore the stack pointer
+    addi $a1, $a1, -1        # Subtract 1 from squareIndex
+    
+    # update board with index
+    sb $a2, board($a1)
+    
 
     jr   $ra                 # Return to the calling function
 
-    # connor Bend
+#// connor and Olise end
 
 
-#//
+#// Olise and Connor
 #int check_for_winner(char *board, int numOfSpaces) {
-#  if (numOfSpaces > 0) {
+check_for_winner:
+    bgtz $a0, check_winner   # Branch if numOfSpaces > 0
 
-#    if ((board[0] == board[1]) && (board[1] == board[2])) {
-#      return 1;
-#    } else if ((board[3] == board[4]) && (board[4] == board[5])) {
-#      return 1;
-#    } else if ((board[6] == board[7]) && (board[7] == board[8])) {
-#      return 1;
-#    } else if ((board[0] == board[5]) && (board[5] == board[8])) {
-#      return 1;
-#    } else if ((board[0] == board[3]) && (board[3] == board[6])) {
-#      return 1;
-#    } else if ((board[1] == board[4]) && (board[4] == board[7])) {
-#      return 1;
-#    } else if ((board[2] == board[5]) && (board[5] == board[8])) {
-#      return 1;
-#    } else if ((board[0] == board[4]) && (board[4] == board[8])) {
-#      return 1;
-#    } else if ((board[2] == board[4]) && (board[4] == board[6])) {
-#      return 1; // 1 --> win move detected
-#    } else {
-#      return 0; // no winner yet
-#    }
-#  } else {
-#    return -1; // no moves left
-#  }
-#}
-#//
+    li $v0, -1               # Return -1 if no moves left
+    jr $ra
 
-checkForWinner:
-    addi $sp, $sp, -12       # Allocate space on the stack for variables
-    sw $ra, 0($sp)           # Save the return address
-    sw $s0, 4($sp)           # Save $s0
-    sw $s1, 8($sp)           # Save $s1
+return_1: # winning match found 
+    li $v0, 1
+    jr $ra   
 
-    li $s0, 0                # Initialize $s0 (counter) to 0
+check_winner:
+    la $t1, board            # Load the address of board into $t1
+# Horizontal check
 
-    # Check rows for a winner
-    li $t0, 0                # Initialize $t0 (row index) to 0
-    jal checkRow             # Jump to checkRow function
-    move $s1, $v0            # Store return value in $s1
+    lb $t2, ($t1)            # Load board[0] into $t2
+    lb $t3, 1($t1)           # Load board[1] into $t3
+    lb $t4, 2($t1)           # Load board[2] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[0] == board[1]
+    seq $t6, $t3, $t4        # store 1 if board[1] == board[2]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match 
 
-    # Check columns for a winner
-    li $t0, 0                # Initialize $t0 (column index) to 0
-    jal checkColumn          # Jump to checkColumn function
-    or $s1, $s1, $v0         # Combine return value with $s1
+    lb $t2, 3($t1)           # Load board[3] into $t2
+    lb $t3, 4($t1)           # Load board[4] into $t3
+    lb $t4, 5($t1)           # Load board[5] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[3] == board[4]
+    seq $t6, $t3, $t4        # store 1 if board[4] == board[5]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
 
-    # Check diagonals for a winner
-    jal checkDiagonal        # Jump to checkDiagonal function
-    or $s1, $s1, $v0         # Combine return value with $s1
+    lb $t2, 6($t1)           # Load board[6] into $t2
+    lb $t3, 7($t1)           # Load board[7] into $t3
+    lb $t4, 8($t1)           # Load board[8] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[6] == board[7]
+    seq $t6, $t3, $t4        # store 1 if board[7] == board[8]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
 
-    lw $ra, 0($sp)           # Restore $ra
-    lw $s0, 4($sp)           # Restore $s0
-    lw $s1, 8($sp)           # Restore $s1
-    addi $sp, $sp, 12        # Deallocate space from the stack
+# diagonal check
+    lb $t2, ($t1)            # Load board[0] into $t2
+    lb $t3, 4($t1)           # Load board[4] into $t3
+    lb $t4, 8($t1)           # Load board[8] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[0] == board[4]
+    seq $t6, $t3, $t4        # store 1 if board[4] == board[8]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
+    
+    lb $t2, 2($t1)           # Load board[2] into $t2
+    lb $t3, 4($t1)           # Load board[4] into $t3
+    lb $t4, 6($t1)           # Load board[6] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[2] == board[4]
+    seq $t6, $t3, $t4        # store 1 if board[4] == board[6]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
+    
+# Vertical Check
+    lb $t2, ($t1)            # Load board[0] into $t2
+    lb $t3, 3($t1)           # Load board[3] into $t3
+    lb $t4, 6($t1)           # Load board[6] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[0] == board[3]
+    seq $t6, $t3, $t4        # store 1 if board[3] == board[6]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
 
-    move $v0, $s1            # Move result to $v0
-    jr $ra                   # Return from the function
+    lb $t2, 1($t1)           # Load board[1] into $t2
+    lb $t3, 4($t1)           # Load board[4] into $t3
+    lb $t4, 7($t1)           # Load board[7] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[1] == board[4]
+    seq $t6, $t3, $t4        # store 1 if board[4] == board[7]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
 
+    lb $t2, 2($t1)           # Load board[2] into $t2
+    lb $t3, 5($t1)           # Load board[5] into $t3
+    lb $t4, 8($t1)           # Load board[8] into $t4
+    seq $t5, $t2, $t3        # store 1 if board[2] == board[5]
+    seq $t6, $t3, $t4        # store 1 if board[5] == board[8]
+    add $t5, $t5, $t6        
+    beq $t5, 2, return_1     # means we have a match
 
-checkRow:
-    li $t1, 0                # Initialize $t1 (column index) to 0
+    # No winner yet
+    li $v0, 0
+    jr $ra
+# //olise and connor end
 
-loop_row:
-    beq $t1, 3, exit_row     # Exit loop if column index equals 3
-
-    sll $t2, $t0, 2          # Calculate the index in board[]
-    add $t2, $t2, $t1        # Add column index to the index
-    add $t2, $a0, $t2        # Add board[] base address to the index
-
-    lb $t3, 0($t2)           # Load the character from board[] into $t3
-
-    beqz $t3, next_row       # Skip iteration if the character is null
-
-    addi $s0, $s0, 1         # Increment counter by 1
-
-next_row:
-    addi $t1, $t1, 1         # Increment column index by 1
-    j loop_row               # Repeat the loop
-
-exit_row:
-    li $t4, 3                # Load the constant value 3 into $t4
-    beq $s0, $t4, winner     # Branch to winner label if counter equals 3
-
-    li $v0, 0                # Return 0 (no winner)
-    jr $ra                   # Return from the function
-
-
-checkColumn:
-    li $t1, 0                # Initialize $t1 (row index) to 0
-
-loop_column:
-    beq $t1, 3, exit_column  # Exit loop if row index equals 3
-
-    sll $t2, $t1, 2          # Calculate the index in board[]
-    add $t2, $t2, $t0        # Add row index to the index
-    sll $t2, $t2, 2          # Multiply the index by 4 (since each element in board[] is a word)
-    add $t2, $t2, $a0        # Add board[] base address to the index
-
-    lb $t3, 0($t2)           # Load the character from board[] into $t3
-
-    beqz $t3, next_column    # Skip iteration if the character is null
-
-    addi $s0, $s0, 1         # Increment counter by 1
-
-next_column:
-    addi $t1, $t1, 1         # Increment row index by 1
-    j loop_column            # Repeat the loop
-
-exit_column:
-    li $t4, 3                # Load the constant value 3 into $t4
-    beq $s0, $t4, winner     # Branch to winner label if counter equals 3
-
-    li $v0, 0                # Return 0 (no winner)
-    jr $ra                   # Return from the function
-
-
-checkDiagonal:
-    li $t1, 0                # Initialize $t1 (index) to 0
-
-loop_diagonal:
-    beq $t1, 3, exit_diagonal  # Exit loop if index equals 3
-
-    sll $t2, $t1, 2          # Calculate the index in board[]
-
-    # Check the main diagonal
-    add $t3, $t0, $t2        # Add row index to the index
-    sll $t3, $t3, 2          # Multiply the index by 4 (since each element in board[] is a word)
-    add $t3, $t3, $a0        # Add board[] base address to the index
-
-    lb $t4, 0($t3)           # Load the character from board[] into $t4
-
-    beqz $t4, next_diagonal  # Skip iteration if the character is null
-
-    addi $s0, $s0, 1         # Increment counter by 1
-
-next_diagonal:
-    addi $t1, $t1, 1         # Increment index by 1
-    j loop_diagonal          # Repeat the loop
-
-exit_diagonal:
-    li $t5, 3                # Load the constant value 3 into $t5
-    beq $s0, $t5, winner     # Branch to winner label if counter equals 3
-
-    li $v0, 0                # Return 0 (no winner)
-    jr $ra                   # Return from the function
-
-
-winner:
-    li $v0, 1                # Return 1 (winner)
-    jr $ra                   # Return from the function
-
-
-#//
+# //cornor and Olise start
 #int validateChoice(int choice, char *board) {
-#  char squareChoice;
-#  int returnValue = 0; // 0 --> not a valid choice
+validateChoice: # choice --> $a0
+    
+#  char squareChoice; --> $t0
+    
+#  int returnValue = 0; // 0 --> not a valid choice --> $v0
 #                      // 1 --> its a valid choice
+    li $v0, 0 # default
 
 #  if (choice > 0 && choice < 10) {
+    blt $a0, 1, endOfValidateChoice      # Branch to invalid label if input is less than 1
+    bgt $a0, 9, endOfValidateChoice      # Branch to invalid label if input is greater than 9
+    
 #    //"choice--" -->this is to make the
 #    // choices usable for indexing the
 #    // array
 #    choice--;
+
+    # move the choice from $a0 to $t0 
+    # then subtract 1 from it. Index 
+    # ffor accessing the board
+    addi $t0, $a0, -1 
+    
 #    squareChoice = board[choice];
+    lb $t0, board($t0)
+    
+    
 
 #    if (squareChoice != 'x' && squareChoice != 'o') {
+
+    # 120 is decimal for 'x' 111 is decimal for '0' 
+    # if we see a 'x' or 'o' branch to funnction 
+    # end
+    beq $t0, 120, endOfValidateChoice
+    beq $t0, 111, endOfValidateChoice
+    
 #      returnValue = 1; // its a valid choice
+    
+    # set return value to 1
+    li $v0, 1
 #    }
 #  }
 
+    endOfValidateChoice:
 #  return returnValue;
+        jr $ra #return the value at $v0
 #}
 
-validateChoice:
-    addi $sp, $sp, -8        # Allocate space on the stack for variables
-    sw $ra, 0($sp)           # Save the return address
-    sw $s0, 4($sp)           # Save $s0
-
-    li $s0, 0                # Initialize $s0 (valid) to 0
-
-    li $v0, 5                # Prompt for input (read integer)
-    syscall
-    move $s1, $v0            # Move input value to $s1
-
-    blt $s1, 1, invalid      # Branch to invalid label if input is less than 1
-    bgt $s1, 9, invalid      # Branch to invalid label if input is greater than 9
-
-    li $s0, 1                # Set $s0 (valid) to 1
-
-invalid:
-    lw $ra, 0($sp)           # Restore $ra
-    lw $s0, 4($sp)           # Restore $s0
-    addi $sp, $sp, 8         # Deallocate space from the stack
-
-    move $v0, $s0            # Move result to $v0
-    jr $ra                   # Return from the function
+# //Cornor and Olise end
 
 
-#// Olise Start
+
+# //Olise Start
+
 #void play(int playerId, char *board, char playerMark, int numOfSpaceLeft) {
 # ($a0 --> playerId, $s0 --> board, $a1 --> playerMark, $a2 --> numOfSpaceLeft)
 play:
@@ -515,67 +491,165 @@ play:
 
 
 #  playerSelection = make_selection(board);
+    jal make_selection
+    
+    # move result from $v0 to $t3
+    add $t3, $v0, $zero
+    
+    # restore temp variables
+    lw $t0, 4($sp)
+    lw $t1, 8($sp)
+    lw $t2, 12($sp)
+    
 #  updateBoard(board, playerSelection, playerMark);
+    
+    # prep params for function
+    add $a1, $t3, $zero # playerSelection 
+    add $a2, $t1, $zero # playerMark
+    
+    # call updateBoard
+    jal updateBoard
+    
+    # restore temp variables
+    lw $t0, 4($sp)
+    lw $t1, 8($sp)
+    lw $t2, 12($sp)
+    
 #  numOfSpaceLeft--;
 
+    # update number of spaces 
+    # left in the board  
+    addi $t2, $t2, -1
+    
+    # update the value stored 
+    # in the stack
+    sw $t2, 12($sp)
+    
+    
 #  gameStatus = check_for_winner(board, numOfSpaceLeft);
+    add $a0, $t2, $zero # num of moves
+    jal check_for_winner
+    
+    # restore temp variables
+    lw $t0, 4($sp)
+    lw $t1, 8($sp)
+    lw $t2, 12($sp)
+    
+    add $t4, $zero, $v0 # store return values to $t4  
 
 #  if (gameStatus == 1 || gameStatus == -1) { // base case
-#    draw_board(board);
 
+    # if game status($t4) == 0 
+    # jump to play_Else label
+    beq $t4, 0, play_Else
+    
+#    draw_board(board);
+    jal draw_board
+    
+    lw $t0, 4($sp)
+    lw $t1, 8($sp)
+    lw $t2, 12($sp)
+    
 #    if (gameStatus != -1) {
+
+    # if game status == -1
+    beq $t4, -1, finishNoWiner
 #      printf("\nPlayer %d is the winner\n\n", playerId);
+
+    # display winnner message
+    li $v0, 4
+    la $a0, prompt3
+    syscall 
+    
+    li $v0, 1
+    add $a0, $t0, $zero
+    syscall 
+    
+    li $v0, 4
+    la $a0, winner
+    syscall 
+
+    j endOfPlay
 #    } else {
+    finishNoWiner:
+    
 #      printf("\nGAME OVER\nNo winner\n");
+    
+    # display game over message
+        li $v0, 4
+        la $a0, gameOver
+        syscall 
 #    }
+
+    j endOfPlay
 
 #  } else { // recursive case
+    play_Else:
 
 #    if (playerId == 1) { // if current player = 1
+
+    # if current playerID is not 1 
+    # jump to label player1Plays
+    bne $t0, 1 player1Plays
+    
 #      play(2, board, 'o', numOfSpaceLeft);
+
+    # load  argument for function
+    li $a0, 2 # playerID
+    li $a1, 'o' # player Mark
+    add $a2, $zero, $t2 #num of spaces left
+    
+    jal play # call the play function again
+
+    j endOfPlay # go to the end of play function
+    
 #    } else {
+    player1Plays:
+
 #      play(1, board, 'x', numOfSpaceLeft);
+    
+    # load  argument for function
+    li $a0, 1 # playerID
+    li $a1, 'x' # player Mark
+    add $a2, $zero, $t2 #num of spaces left
+    
+    jal play
+    
 #    }
 #  }
-    lw $ra, 0($sp) # load return address
-    add $sp, $sp 16 # pop
-    jr $ra
+    endOfPlay:
+        lw $ra, 0($sp) # load return address
+    	add $sp, $sp 16 # pop
+    	jr $ra
 #}
-#// Olise End
+# //Olise End
+
 
 #Connor Start
-resetBoard:        #  we can reuse code rhere rather than rewritw a whole new function to rest
-                   #  we can just redraw the board here I belive
-    	             #   void resetBoard(char *board) {
-	                 #     for (int x = 0; x < 9; x++)    {
-      	           #     board[x] = 1 + x + '0';
-	           #    }
-                   #  }
 
-                   # // Function to reset the board
-               resetBoard:
+resetBoard:
 
-                   addi $sp, $sp, -4 # Adjust stack for saved $ra
-                   sw $ra, 0($sp)    # Save return address
-                   la $t0, board     # Load address of board
+    addi $sp, $sp, -4 # Adjust stack for saved $ra
+    sw $ra, 0($sp)    # Save return address
+    la $t0, board     # Load address of board
 
-                   li $t1, 1         # Initialize loop counter with 1
+    li $t1, 1         # Initialize loop counter with 1
 
-               resetLoop:
-                   li $v0, 11        # system call for storing byte
-                   add $a0, $t1, $zero # convert counter to ASCII and store it in $a0
-                   addi $a0, $a0, 48 # 48 is ASCII offset for numbers
-                   sb $a0, 0($t0)    # Store the ASCII number in the board
+    resetLoop:
+        li $v0, 11        # system call for storing byte
+        add $a0, $t1, $zero # convert counter to ASCII and store it in $a0
+        addi $a0, $a0, 48 # 48 is ASCII offset for numbers
+        sb $a0, 0($t0)    # Store the ASCII number in the board
 
-                   addi $t0, $t0, 1  # Increment board address
-                   addi $t1, $t1, 1  # Increment loop counter
+        addi $t0, $t0, 1  # Increment board address
+        addi $t1, $t1, 1  # Increment loop counter
 
-                   blt $t1, 10, resetLoop # Repeat for all board indices
+        blt $t1, 10, resetLoop # Repeat for all board indices
 
-                   lw $ra, 0($sp)    # Restore return address
-                   addi $sp, $sp, 4  # Restore stack pointer
+        lw $ra, 0($sp)    # Restore return address
+        addi $sp, $sp, 4  # Restore stack pointer
 
-                   jr $ra            # Return to calling function
+        jr $ra            # Return to calling function
 
 
 #Connor End
