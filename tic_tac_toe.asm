@@ -545,11 +545,37 @@ play:
 
 #Connor Start
 resetBoard:        #  we can reuse code rhere rather than rewritw a whole new function to rest
-    j drawBoard    #  we can just redraw the board here I belive
-    	           #   void resetBoard(char *board) {
-	           #     for (int x = 0; x < 9; x++)    {
+                   #  we can just redraw the board here I belive
+    	             #   void resetBoard(char *board) {
+	                 #     for (int x = 0; x < 9; x++)    {
       	           #     board[x] = 1 + x + '0';
 	           #    }
                    #  }
+
+                   # // Function to reset the board
+               resetBoard:
+
+                   addi $sp, $sp, -4 # Adjust stack for saved $ra
+                   sw $ra, 0($sp)    # Save return address
+                   la $t0, board     # Load address of board
+
+                   li $t1, 1         # Initialize loop counter with 1
+
+               resetLoop:
+                   li $v0, 11        # system call for storing byte
+                   add $a0, $t1, $zero # convert counter to ASCII and store it in $a0
+                   addi $a0, $a0, 48 # 48 is ASCII offset for numbers
+                   sb $a0, 0($t0)    # Store the ASCII number in the board
+
+                   addi $t0, $t0, 1  # Increment board address
+                   addi $t1, $t1, 1  # Increment loop counter
+
+                   blt $t1, 10, resetLoop # Repeat for all board indices
+
+                   lw $ra, 0($sp)    # Restore return address
+                   addi $sp, $sp, 4  # Restore stack pointer
+
+                   jr $ra            # Return to calling function
+
 
 #Connor End
